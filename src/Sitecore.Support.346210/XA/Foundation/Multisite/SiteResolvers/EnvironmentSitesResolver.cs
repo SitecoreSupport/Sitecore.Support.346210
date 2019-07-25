@@ -51,6 +51,14 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
                 }
 
                 disorderedSites.Sort(new TreeComparer());
+                using (new EditContext(sitesManagementItem))
+                {
+                    foreach (var site in disorderedSites)
+                    {
+                        sitesOrderField.Add(site.ID.ToString());
+                    }
+                }
+
                 var allSites = orderedSites.Where(site => site != default(Item)).ToList();
                 allSites.AddRange(disorderedSites);
                 return allSites;
