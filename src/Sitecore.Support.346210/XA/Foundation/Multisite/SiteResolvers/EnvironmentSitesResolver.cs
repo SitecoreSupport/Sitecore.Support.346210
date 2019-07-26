@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using Sitecore.Configuration;
 using Sitecore.Data;
+using Sitecore.Data.Eventing.Remote;
+using Sitecore.Data.Events;
 using Sitecore.Data.Fields;
 using Sitecore.Data.Items;
+using Sitecore.Eventing;
 using Sitecore.XA.Foundation.Multisite;
 using Sitecore.XA.Foundation.Multisite.SiteResolvers;
 using Sitecore.XA.Foundation.SitecoreExtensions.Comparers;
@@ -26,7 +29,7 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
             var sitesManagementItem = database.GetItem(SitesManagementId);
             MultilistField sitesOrderField = sitesManagementItem?.Fields[Templates.SiteManagement.Fields.Order];
             var sites = database.GetContentItemsOfTemplate(Templates.SiteDefinition.ID).ToList();
-            if (sitesOrderField == null)
+            if (sitesOrderField == null || sitesManagementItem == null)
             {
                 sites.Sort(new TreeComparer());
                 return sites;
@@ -51,12 +54,28 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
                 }
 
                 disorderedSites.Sort(new TreeComparer());
-                using (new EditContext(sitesManagementItem))
+                var originalValue = sitesOrderField.Value;
+                string newValue;
+                using (new EventDisabler())
                 {
-                    foreach (var site in disorderedSites)
+                    
+                    using (new EditContext(sitesManagementItem))
                     {
-                        sitesOrderField.Add(site.ID.ToString());
+                        foreach (var site in disorderedSites)
+                        {
+                            sitesOrderField.Add(site.ID.ToString());
+                            
+                        }
+                        newValue = sitesOrderField.Value;
                     }
+                }
+
+                if (newValue != originalValue)
+                {
+                    var itemChanges = new ItemChanges(sitesManagementItem);
+                    itemChanges.SetFieldValue(sitesOrderField.InnerField, newValue, originalValue);
+                    database.RemoteEvents.Queue.QueueEvent(new SavedItemRemoteEvent(sitesManagementItem, itemChanges),
+                        true, true);
                 }
 
                 var allSites = orderedSites.Where(site => site != default(Item)).ToList();
