@@ -9,7 +9,7 @@ namespace Sitecore.Support
     {
         public void Configure(IServiceCollection serviceCollection)
         {
-            serviceCollection.AddTransient<IEnvironmentSitesResolver, Sitecore.Support.XA.Foundation.Multisite.SiteResolvers.EnvironmentSitesResolver>();
+            serviceCollection.AddSingleton<IEnvironmentSitesResolver, Sitecore.Support.XA.Foundation.Multisite.SiteResolvers.EnvironmentSitesResolver>();
         }
     }
 }
