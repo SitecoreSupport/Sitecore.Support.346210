@@ -27,8 +27,7 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
                 ((database != null)
                     ? database.GetContentItemsOfTemplate(Templates.SiteDefinition.ID).ToList()
                     : null) ?? new List<Item>();
-            obj.Sort(new TreeOrderComparer());
-            return obj;
+            return SortSites(obj);
         }
 
         public IList<Item> ResolveEnvironmentSites(List<Item> sites, string environment)
@@ -36,8 +35,7 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
             if (string.IsNullOrEmpty(environment) ||
                 string.Equals(environment, "*", StringComparison.OrdinalIgnoreCase))
             {
-                sites.Sort(new TreeOrderComparer());
-                return sites;
+                return SortSites(sites);
             }
 
             sites = sites.Where(delegate (Item site)
@@ -47,8 +45,7 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
                        string.Equals(text, environment, StringComparison.OrdinalIgnoreCase) ||
                        string.Equals(text, "*", StringComparison.OrdinalIgnoreCase);
             }).ToList();
-            sites.Sort(new TreeOrderComparer());
-            return sites;
+            return SortSites(sites);
         }
 
         public string GetActiveEnvironment()
@@ -62,6 +59,17 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
                                select s[Templates.SiteDefinition.Fields.Environment].Trim()).Distinct()
                     where string.Equals(i, "*", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(i)
                     select i).ToList();
+        }
+        private IList<Item> SortSites(IList<Item> sites)
+        {
+            Item sitesManagementItem = ServiceLocator.ServiceProvider.GetService<IContentRepository>().GetItem(new ID(Constants.SitesManagementId));
+            MultilistField sitesOrderField = sitesManagementItem?.Fields[Templates.SiteManagement.Fields.Order];
+            var siteIds = sitesOrderField.TargetIDs.ToList();
+            var orderedSites = sites.Where(s => siteIds.Contains(s.ID)).ToList();
+            var disorderedSites = sites.Except(orderedSites);
+            orderedSites = orderedSites.OrderBy(s => siteIds.IndexOf(s.ID)).ToList();
+            orderedSites.AddRange(disorderedSites);
+            return orderedSites;
         }
     }
 }
