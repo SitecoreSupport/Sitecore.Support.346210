@@ -1,9 +1,11 @@
 ﻿
 using Microsoft.Extensions.DependencyInjection;
-using Sitecore.XA.Foundation.SitecoreExtensions.Repositories;
 
 namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
     using Sitecore.Configuration;
     using Sitecore.Data;
     using Sitecore.Data.Fields;
@@ -13,9 +15,8 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
     using Sitecore.XA.Foundation.Multisite.Comparers;
     using Sitecore.XA.Foundation.Multisite.SiteResolvers;
     using Sitecore.XA.Foundation.SitecoreExtensions.Extensions;
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
+    using Sitecore.XA.Foundation.SitecoreExtensions.Repositories;
+    using Sitecore.Support.XA.Foundation.SitecoreExtensions.Repositories;
 
     public class EnvironmentSitesResolver : IEnvironmentSitesResolver
     {
@@ -62,9 +63,14 @@ namespace Sitecore.Support.XA.Foundation.Multisite.SiteResolvers
         }
         private IList<Item> SortSites(IList<Item> sites)
         {
-            Item sitesManagementItem = ServiceLocator.ServiceProvider.GetService<IContentRepository>().GetItem(new ID(Constants.SitesManagementId));
+            var databaseRepo = new SupportDatabaseRepository();
+            Item sitesManagementItem = databaseRepo.GetContentDatabase().GetItem(new ID(Constants.SitesManagementId));
             MultilistField sitesOrderField = sitesManagementItem?.Fields[Templates.SiteManagement.Fields.Order];
-            var siteIds = sitesOrderField.TargetIDs.ToList();
+            var siteIds = sitesOrderField?.TargetIDs.ToList();
+            if (siteIds == null)
+            {
+                return sites;
+            }
             var orderedSites = sites.Where(s => siteIds.Contains(s.ID)).ToList();
             var disorderedSites = sites.Except(orderedSites);
             orderedSites = orderedSites.OrderBy(s => siteIds.IndexOf(s.ID)).ToList();
